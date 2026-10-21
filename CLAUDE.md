@@ -31,16 +31,22 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+index.js                          SDK wiring only: src/app.js registers the handlers before connect()
+src/app.js                        every SDK handler -> the hub (also used by the tests)
+src/hub.js                        reading timer, views, states, scene events, badge, connection status
+src/alarms.js                     the scene triggers as a pure state machine (once per crossing)
+src/glucose.js                    units, trend numbers and arrows, 5-minute delta, target range
+src/devices.js                    the site device: features, names (4 languages), values
+src/nightscout/client.js          Nightscout REST API v1 (fetch), auth, errors by kind, normalization
+src/scenes.js                     scene action handler (manifest `scene_actions`)
+src/widgets.js                    dashboard widget `glucose` (manifest `widgets`)
+src/texts.js                      connection, error, data, sentence and report texts (4 languages)
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/store.js, src/problems.js     /data/nightscout-state.json; one log line per repeated failure
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+                                  and helpers/fakeNightscout.js (real answers in test/fixtures/nightscout)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +76,13 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, widget content, feature names, scene outputs, manifest texts, and
+  `docs/en.md`, `docs/fr.md`, `docs/de.md`, `docs/es.md`, kept in sync
+  (`test/i18n.test.js` checks the languages and the doc sections).
+- **Not a medical device**: said in the configuration, the widget, the README
+  and every documentation file. Never log a glucose value, a token or the
+  API_SECRET.
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -197,6 +208,39 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
 - Les filtres de scène ne font qu'égalité et appartenance : un seuil reste le travail d'un capteur.
 - **Les clés de widgets, de déclencheurs et d'actions sont figées une fois publiées.**
 - `gladys_version` `>=5.1.0` dès qu'il y a widgets, déclencheurs ou actions de scène.
+
+## Nightscout (propre à ce dépôt)
+
+- **API** vérifiée sur `nightscout/cgm-remote-monitor:latest` (15.0.8) + `mongo:4.4` en Docker,
+  alimenté par `POST /api/v1/entries` (API_SECRET). Réponses dans `test/fixtures/nightscout`.
+- **Authentification** : un sujet au rôle `readable` (Admin tools → Add new Subject) donne un jeton
+  `nom-<16 hex>`, passé en `?token=` ; il lit `status.json`, `entries` et `devicestatus`, et reçoit
+  401 en écriture. L'API_SECRET passe en en-tête `api-secret` haché SHA-1 (il donne aussi l'écriture :
+  le jeton est conseillé). Sans rien : 401 si `AUTH_DEFAULT_ROLES=denied`, 200 si `readable` (site
+  public). Pas de redirection suivie (le secret ne part pas ailleurs).
+- **Seuils** : `settings.thresholds` de `status.json` sont **toujours en mg/dL**, même sur un site en
+  mmol/L (`BG_TARGET_TOP=10` → 180 ; `BG_HIGH=14` → 252). L'unité d'affichage est
+  `settings.units` (`mg/dl` ou `mmol`). `sgv` est toujours en mg/dL ; sous 39, c'est un code
+  d'erreur du capteur (Nightscout les masque).
+- `find[date][$gte]=<ms>` marche non encodé dans l'URL ; `count` borne la réponse (400 couvre un
+  capteur à la minute sur 3 h). Sans valeur sur 3 h, on relit `count=1` pour l'âge.
+- **Directions** : mêmes noms que Dexcom Share (`DoubleUp`…`DoubleDown`, `NONE`,
+  `NOT COMPUTABLE`, `RATE OUT OF RANGE`) : numéros et flèches de gladys-dexcom (pydexcom).
+- **Pas de catégorie ni d'unité « glycémie » dans le cœur** et pas de couple `unknown/decimal` dans
+  la table du front : glycémie, variation et tendance en `unknown/unknown`, l'unité dans le nom et dans
+  la clé (`glucose_mgdl` / `glucose_mmol`, comme gladys-dexcom) ; changer d'unité ajoute une
+  fonctionnalité, l'ancienne est gardée (`withCreatedFeatures`). Plusieurs `unknown/unknown` sur
+  l'appareil : le tableau de bord affiche bien leurs noms.
+- **Déclencheurs à seuil** : le cœur ne filtre que par égalité ; un événement par seuil franchi,
+  avec le seuil (`threshold`, `arrows`, `minutes`) dans ses données (même schéma que gladys-dexcom).
+  État dans `/data` (aucune glycémie) ; première lecture sans état = référence, sans événement ; un
+  trou **dans les données** (écart entre deux valeurs de Nightscout, pas entre deux lectures) plus long
+  que le délai « à jour » réarme les seuils ; « revenue dans la cible » demande 5 mg/dL de marge ; un
+  uploader en retard ne réarme pas « trop ancienne » ; sans `status.json` lu (Nightscout injoignable
+  depuis le démarrage), seuls les « trop ancienne » sont évalués, depuis la date gardée dans `/data`.
+- Données de santé : `keep_history: false` partout, rien dans les journaux (un test le vérifie).
+- Le badge : `local` si l'hôte est privé (RFC 1918, CGNAT, `.local`, nom sans point), `cloud`
+  sinon ; 192.0.2.x des tests est donc « cloud ».
 
 ## Store
 

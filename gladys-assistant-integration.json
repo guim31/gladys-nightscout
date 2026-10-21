@@ -1,177 +1,1402 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Nightscout",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Your Nightscout glucose in Gladys: value, trend, alerts. Read only. Not a medical device.",
+    "fr": "Votre glycémie Nightscout dans Gladys : valeur, tendance, alertes. Pas un dispositif médical.",
+    "de": "Deine Nightscout-Glukose in Gladys: Wert, Trend, Alarme. Nur lesend. Kein Medizinprodukt.",
+    "es": "Su glucosa de Nightscout en Gladys: valor, tendencia, alertas. No es un dispositivo médico."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-nightscout:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-nightscout/main/cover.png",
+  "categories": ["services"],
   "transports": ["local", "cloud"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "How it works",
+        "fr": "Fonctionnement",
+        "de": "So funktioniert es",
+        "es": "Funcionamiento"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "NOT A MEDICAL DEVICE: never use it for a treatment decision; values and alerts may be late or missing. Gladys reads your Nightscout site, read only: glucose, trend and age on one device (Discovery tab). Health data: no history by default, never in the logs.",
+        "fr": "PAS UN DISPOSITIF MÉDICAL : ne jamais s'en servir pour un traitement ; valeurs et alertes peuvent être en retard ou manquer. Gladys lit votre Nightscout, en lecture seule : glycémie, tendance et âge sur un appareil (onglet Découverte). Pas d'historique par défaut.",
+        "de": "KEIN MEDIZINPRODUKT: nie für eine Therapieentscheidung nutzen; Werte und Alarme können verspätet sein oder fehlen. Gladys liest deine Nightscout-Seite, nur lesend: Glukose, Trend und Alter auf einem Gerät (Tab „Entdecken“). Standardmäßig ohne Verlauf.",
+        "es": "NO ES UN DISPOSITIVO MÉDICO: no lo use nunca para un tratamiento; valores y alertas pueden llegar tarde o faltar. Gladys lee su Nightscout, solo lectura: glucosa, tendencia y antigüedad en un dispositivo (pestaña Descubrir). Sin historial por defecto."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/guim31/gladys-nightscout/blob/main/docs/en.md",
+          "label": {
+            "en": "Setup guide",
+            "fr": "Guide d'installation",
+            "de": "Einrichtungsanleitung",
+            "es": "Guía de instalación"
+          }
+        },
+        {
+          "url": "https://nightscout.github.io/nightscout/security/",
+          "label": {
+            "en": "Nightscout access tokens",
+            "fr": "Jetons d'accès Nightscout",
+            "de": "Nightscout-Zugriffstokens",
+            "es": "Tokens de acceso de Nightscout"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "url",
+      "type": "string",
+      "label": {
+        "en": "Nightscout address",
+        "fr": "Adresse de Nightscout",
+        "de": "Nightscout-Adresse",
+        "es": "Dirección de Nightscout"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "description": {
+        "en": "The address of your site, as in the browser.",
+        "fr": "L'adresse de votre site, comme dans le navigateur.",
+        "de": "Die Adresse deiner Seite, wie im Browser.",
+        "es": "La dirección de su sitio, como en el navegador."
+      },
+      "placeholder": {
+        "en": "e.g. https://my-site.example.org",
+        "fr": "ex. https://mon-site.example.org",
+        "de": "z. B. https://meine-seite.example.org",
+        "es": "p. ej. https://mi-sitio.example.org"
+      },
+      "required": true
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+      "key": "access_token",
+      "type": "secret",
+      "label": {
+        "en": "Access token (recommended)",
+        "fr": "Jeton d'accès (recommandé)",
+        "de": "Zugriffstoken (empfohlen)",
+        "es": "Token de acceso (recomendado)"
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "description": {
+        "en": "A token with the readable role: Nightscout, Admin tools, Add new Subject. Empty for a public site.",
+        "fr": "Un jeton au rôle readable : Nightscout, Outils d'administration, Ajouter un sujet. Vide pour un site public.",
+        "de": "Ein Token mit der Rolle readable: Nightscout, Admin-Werkzeuge, Neues Subjekt hinzufügen. Leer bei einer öffentlichen Seite.",
+        "es": "Un token con el rol readable: Nightscout, Herramientas de administración, Añadir sujeto. Vacío para un sitio público."
+      },
+      "required": false
     },
     {
-      "key": "unit",
+      "key": "api_secret",
+      "type": "secret",
+      "label": {
+        "en": "API_SECRET (if no token)",
+        "fr": "API_SECRET (sans jeton)",
+        "de": "API_SECRET (ohne Token)",
+        "es": "API_SECRET (sin token)"
+      },
+      "description": {
+        "en": "Only used without a token, sent hashed. It also allows writing: prefer a read-only token.",
+        "fr": "Utilisé seulement sans jeton, envoyé haché. Il permet aussi d'écrire : préférez un jeton en lecture.",
+        "de": "Nur ohne Token genutzt, gehasht gesendet. Es erlaubt auch Schreiben: Nimm lieber ein Lese-Token.",
+        "es": "Solo se usa sin token, enviado con hash. También permite escribir: prefiera un token de lectura."
+      },
+      "required": false
+    },
+    {
+      "key": "glucose_unit",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
-      "required": false,
-      "default": "celsius",
+      "label": {
+        "en": "Glucose unit",
+        "fr": "Unité de glycémie",
+        "de": "Glukose-Einheit",
+        "es": "Unidad de glucosa"
+      },
+      "description": {
+        "en": "Changing it adds a feature in the new unit: update the device from the Discovery tab.",
+        "fr": "La changer ajoute une fonctionnalité dans la nouvelle unité : mettez l'appareil à jour depuis l'onglet Découverte.",
+        "de": "Eine Änderung fügt eine Funktion in der neuen Einheit hinzu: Aktualisiere das Gerät im Tab „Entdecken“.",
+        "es": "Cambiarla añade una función en la nueva unidad: actualice el dispositivo desde la pestaña Descubrir."
+      },
+      "required": true,
+      "default": "auto",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "auto",
+          "label": {
+            "en": "As in Nightscout",
+            "fr": "Comme dans Nightscout",
+            "de": "Wie in Nightscout",
+            "es": "Como en Nightscout"
+          }
+        },
+        {
+          "value": "mgdl",
+          "label": {
+            "en": "mg/dL",
+            "fr": "mg/dL",
+            "de": "mg/dL",
+            "es": "mg/dL"
+          }
+        },
+        {
+          "value": "mmol",
+          "label": {
+            "en": "mmol/L",
+            "fr": "mmol/L",
+            "de": "mmol/L",
+            "es": "mmol/L"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
-      "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+      "key": "poll_interval",
+      "type": "select",
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle de rafraîchissement",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
       },
-      "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
-    }
-  ],
-  "actions": [
-    {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
+      "description": {
+        "en": "How often Nightscout is read. A sensor sends a value every 1 to 5 minutes.",
+        "fr": "À quelle fréquence Nightscout est lu. Un capteur envoie une valeur toutes les 1 à 5 minutes.",
+        "de": "Wie oft Nightscout gelesen wird. Ein Sensor sendet alle 1 bis 5 Minuten einen Wert.",
+        "es": "Con qué frecuencia se lee Nightscout. Un sensor envía un valor cada 1 a 5 minutos."
+      },
+      "required": true,
+      "default": "60",
+      "options": [
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        },
+        {
+          "value": "120",
+          "label": {
+            "en": "2 minutes",
+            "fr": "2 minutes",
+            "de": "2 Minuten",
+            "es": "2 minutos"
+          }
+        },
+        {
+          "value": "300",
+          "label": {
+            "en": "5 minutes",
+            "fr": "5 minutes",
+            "de": "5 Minuten",
+            "es": "5 minutos"
+          }
+        }
+      ]
     },
     {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
+      "key": "stale_after",
+      "type": "select",
+      "label": {
+        "en": "A value is current for",
+        "fr": "Une valeur est à jour pendant",
+        "de": "Ein Wert ist aktuell für",
+        "es": "Un valor es actual durante"
+      },
+      "description": {
+        "en": "Beyond, the glucose and the trend are no longer published as current, and no glucose trigger fires.",
+        "fr": "Au-delà, la glycémie et la tendance ne sont plus publiées comme actuelles, et aucun déclencheur de glycémie ne part.",
+        "de": "Danach werden Glukose und Trend nicht mehr als aktuell veröffentlicht, und kein Glukose-Auslöser startet.",
+        "es": "Después, la glucosa y la tendencia ya no se publican como actuales y no se activa ningún disparador de glucosa."
+      },
+      "required": true,
+      "default": "15",
+      "options": [
         {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "value": "10",
+          "label": {
+            "en": "10 minutes",
+            "fr": "10 minutes",
+            "de": "10 Minuten",
+            "es": "10 minutos"
+          }
+        },
+        {
+          "value": "15",
+          "label": {
+            "en": "15 minutes",
+            "fr": "15 minutes",
+            "de": "15 Minuten",
+            "es": "15 minutos"
+          }
+        },
+        {
+          "value": "20",
+          "label": {
+            "en": "20 minutes",
+            "fr": "20 minutes",
+            "de": "20 Minuten",
+            "es": "20 minutos"
+          }
+        },
+        {
+          "value": "30",
+          "label": {
+            "en": "30 minutes",
+            "fr": "30 minutes",
+            "de": "30 Minuten",
+            "es": "30 minutos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "60 minutes",
+            "fr": "60 minutes",
+            "de": "60 Minuten",
+            "es": "60 minutos"
+          }
+        }
+      ]
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the names",
+        "fr": "Langue des noms",
+        "de": "Sprache der Namen",
+        "es": "Idioma de los nombres"
+      },
+      "description": {
+        "en": "Language of the feature names (set when a device is added) and of the texts sent to scenes.",
+        "fr": "Langue des noms de fonctionnalités (figés à l'ajout d'un appareil) et des textes envoyés aux scènes.",
+        "de": "Sprache der Funktionsnamen (beim Hinzufügen eines Geräts festgelegt) und der Texte für Szenen.",
+        "es": "Idioma de los nombres de funciones (fijados al añadir un dispositivo) y de los textos enviados a las escenas."
+      },
+      "default": "fr",
+      "required": true,
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
         }
       ]
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "glucose_low",
+      "label": {
+        "en": "Glucose low",
+        "fr": "Glycémie basse",
+        "de": "Glukose niedrig",
+        "es": "Glucosa baja"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "The glucose is below the chosen threshold. Once per crossing: again after a value 5 mg/dL above it, or after a gap in the data. Current values only. May be late or missing: never a medical alarm.",
+        "fr": "La glycémie passe sous le seuil choisi. Une fois par passage : de nouveau après une valeur 5 mg/dL au-dessus, ou après un trou dans les données. Valeurs à jour seulement. Peut être en retard ou manquer : jamais une alarme médicale.",
+        "de": "Die Glukose fällt unter die gewählte Schwelle. Einmal pro Unterschreitung: erneut nach einem Wert 5 mg/dL darüber oder nach einer Datenlücke. Nur aktuelle Werte. Kann verspätet sein oder fehlen: nie ein medizinischer Alarm.",
+        "es": "La glucosa baja del umbral elegido. Una vez por cruce: de nuevo tras un valor 5 mg/dL por encima, o tras un hueco en los datos. Solo valores actuales. Puede llegar tarde o faltar: nunca una alarma médica."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "required": false,
+          "label": {
+            "en": "Device (empty: any)",
+            "fr": "Appareil (vide : tous)",
+            "de": "Gerät (leer: alle)",
+            "es": "Dispositivo (vacío: todos)"
+          }
         },
         {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "key": "threshold",
+          "type": "select",
+          "required": true,
+          "label": {
+            "en": "Below",
+            "fr": "Sous",
+            "de": "Unter",
+            "es": "Por debajo de"
+          },
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            {
+              "value": "nightscout",
+              "label": {
+                "en": "Low target of Nightscout",
+                "fr": "Cible basse de Nightscout",
+                "de": "Untere Zielgrenze von Nightscout",
+                "es": "Objetivo bajo de Nightscout"
+              }
+            },
+            {
+              "value": "70",
+              "label": {
+                "en": "70 mg/dL (3.9 mmol/L)",
+                "fr": "70 mg/dL (3,9 mmol/L)",
+                "de": "70 mg/dL (3,9 mmol/L)",
+                "es": "70 mg/dL (3,9 mmol/L)"
+              }
+            },
+            {
+              "value": "80",
+              "label": {
+                "en": "80 mg/dL (4.4 mmol/L)",
+                "fr": "80 mg/dL (4,4 mmol/L)",
+                "de": "80 mg/dL (4,4 mmol/L)",
+                "es": "80 mg/dL (4,4 mmol/L)"
+              }
+            }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "device_name",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Device",
+            "fr": "Appareil",
+            "de": "Gerät",
+            "es": "Dispositivo"
+          }
+        },
+        {
+          "key": "glucose",
+          "type": "number",
+          "label": {
+            "en": "Glucose",
+            "fr": "Glycémie",
+            "de": "Glukose",
+            "es": "Glucosa"
+          }
+        },
+        {
+          "key": "unit",
+          "type": "string",
+          "label": {
+            "en": "Unit",
+            "fr": "Unité",
+            "de": "Einheit",
+            "es": "Unidad"
+          }
+        },
+        {
+          "key": "trend",
+          "type": "number",
+          "label": {
+            "en": "Trend (1 rising quickly, 4 steady, 7 falling quickly)",
+            "fr": "Tendance (1 hausse rapide, 4 stable, 7 baisse rapide)",
+            "de": "Trend (1 schnell steigend, 4 stabil, 7 schnell fallend)",
+            "es": "Tendencia (1 subida rápida, 4 estable, 7 bajada rápida)"
+          }
+        },
+        {
+          "key": "trend_arrow",
+          "type": "string",
+          "label": {
+            "en": "Trend arrow",
+            "fr": "Flèche de tendance",
+            "de": "Trendpfeil",
+            "es": "Flecha de tendencia"
+          }
+        },
+        {
+          "key": "delta",
+          "type": "number",
+          "label": {
+            "en": "Change over 5 min",
+            "fr": "Variation sur 5 min",
+            "de": "Änderung in 5 Min.",
+            "es": "Variación en 5 min"
+          }
+        },
+        {
+          "key": "measured_at",
+          "type": "string",
+          "label": {
+            "en": "Measured at (UTC)",
+            "fr": "Mesurée à (UTC)",
+            "de": "Gemessen um (UTC)",
+            "es": "Medida a las (UTC)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "glucose_very_low",
+      "label": {
+        "en": "Glucose very low",
+        "fr": "Glycémie très basse",
+        "de": "Glukose sehr niedrig",
+        "es": "Glucosa muy baja"
+      },
+      "description": {
+        "en": "The glucose is below the urgent low of Nightscout, or 54 mg/dL. Once per crossing, like Glucose low. Current values only. May be late or missing: never a medical alarm.",
+        "fr": "La glycémie passe sous le bas urgent de Nightscout, ou 54 mg/dL. Une fois par passage, comme Glycémie basse. Valeurs à jour seulement. Peut être en retard ou manquer : jamais une alarme médicale.",
+        "de": "Die Glukose fällt unter „dringend niedrig“ von Nightscout oder 54 mg/dL. Einmal pro Unterschreitung, wie Glukose niedrig. Nur aktuelle Werte. Kann verspätet sein oder fehlen: nie ein medizinischer Alarm.",
+        "es": "La glucosa baja del bajo urgente de Nightscout, o 54 mg/dL. Una vez por cruce, como Glucosa baja. Solo valores actuales. Puede llegar tarde o faltar: nunca una alarma médica."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "required": false,
+          "label": {
+            "en": "Device (empty: any)",
+            "fr": "Appareil (vide : tous)",
+            "de": "Gerät (leer: alle)",
+            "es": "Dispositivo (vacío: todos)"
+          }
+        },
+        {
+          "key": "threshold",
+          "type": "select",
+          "required": true,
+          "label": {
+            "en": "Below",
+            "fr": "Sous",
+            "de": "Unter",
+            "es": "Por debajo de"
+          },
+          "options": [
+            {
+              "value": "nightscout",
+              "label": {
+                "en": "Urgent low of Nightscout",
+                "fr": "Bas urgent de Nightscout",
+                "de": "Dringend niedrig von Nightscout",
+                "es": "Bajo urgente de Nightscout"
+              }
+            },
+            {
+              "value": "54",
+              "label": {
+                "en": "54 mg/dL (3.0 mmol/L)",
+                "fr": "54 mg/dL (3,0 mmol/L)",
+                "de": "54 mg/dL (3,0 mmol/L)",
+                "es": "54 mg/dL (3,0 mmol/L)"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "device_name",
+          "type": "string",
+          "label": {
+            "en": "Device",
+            "fr": "Appareil",
+            "de": "Gerät",
+            "es": "Dispositivo"
+          }
+        },
+        {
+          "key": "glucose",
+          "type": "number",
+          "label": {
+            "en": "Glucose",
+            "fr": "Glycémie",
+            "de": "Glukose",
+            "es": "Glucosa"
+          }
+        },
+        {
+          "key": "unit",
+          "type": "string",
+          "label": {
+            "en": "Unit",
+            "fr": "Unité",
+            "de": "Einheit",
+            "es": "Unidad"
+          }
+        },
+        {
+          "key": "trend",
+          "type": "number",
+          "label": {
+            "en": "Trend (1 rising quickly, 4 steady, 7 falling quickly)",
+            "fr": "Tendance (1 hausse rapide, 4 stable, 7 baisse rapide)",
+            "de": "Trend (1 schnell steigend, 4 stabil, 7 schnell fallend)",
+            "es": "Tendencia (1 subida rápida, 4 estable, 7 bajada rápida)"
+          }
+        },
+        {
+          "key": "trend_arrow",
+          "type": "string",
+          "label": {
+            "en": "Trend arrow",
+            "fr": "Flèche de tendance",
+            "de": "Trendpfeil",
+            "es": "Flecha de tendencia"
+          }
+        },
+        {
+          "key": "delta",
+          "type": "number",
+          "label": {
+            "en": "Change over 5 min",
+            "fr": "Variation sur 5 min",
+            "de": "Änderung in 5 Min.",
+            "es": "Variación en 5 min"
+          }
+        },
+        {
+          "key": "measured_at",
+          "type": "string",
+          "label": {
+            "en": "Measured at (UTC)",
+            "fr": "Mesurée à (UTC)",
+            "de": "Gemessen um (UTC)",
+            "es": "Medida a las (UTC)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "glucose_high",
+      "label": {
+        "en": "Glucose high",
+        "fr": "Glycémie haute",
+        "de": "Glukose hoch",
+        "es": "Glucosa alta"
+      },
+      "description": {
+        "en": "The glucose is above the chosen threshold. Once per crossing: again after a value 5 mg/dL below it, or after a gap in the data. Current values only. May be late or missing: never a medical alarm.",
+        "fr": "La glycémie passe au-dessus du seuil choisi. Une fois par passage : de nouveau après une valeur 5 mg/dL en dessous, ou après un trou dans les données. Valeurs à jour seulement. Peut être en retard ou manquer : jamais une alarme médicale.",
+        "de": "Die Glukose steigt über die gewählte Schwelle. Einmal pro Überschreitung: erneut nach einem Wert 5 mg/dL darunter oder nach einer Datenlücke. Nur aktuelle Werte. Kann verspätet sein oder fehlen: nie ein medizinischer Alarm.",
+        "es": "La glucosa sube por encima del umbral elegido. Una vez por cruce: de nuevo tras un valor 5 mg/dL por debajo, o tras un hueco en los datos. Solo valores actuales. Puede llegar tarde o faltar: nunca una alarma médica."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "required": false,
+          "label": {
+            "en": "Device (empty: any)",
+            "fr": "Appareil (vide : tous)",
+            "de": "Gerät (leer: alle)",
+            "es": "Dispositivo (vacío: todos)"
+          }
+        },
+        {
+          "key": "threshold",
+          "type": "select",
+          "required": true,
+          "label": {
+            "en": "Above",
+            "fr": "Au-dessus de",
+            "de": "Über",
+            "es": "Por encima de"
+          },
+          "options": [
+            {
+              "value": "nightscout",
+              "label": {
+                "en": "High target of Nightscout",
+                "fr": "Cible haute de Nightscout",
+                "de": "Obere Zielgrenze von Nightscout",
+                "es": "Objetivo alto de Nightscout"
+              }
+            },
+            {
+              "value": "nightscout_urgent",
+              "label": {
+                "en": "Urgent high of Nightscout",
+                "fr": "Haut urgent de Nightscout",
+                "de": "Dringend hoch von Nightscout",
+                "es": "Alto urgente de Nightscout"
+              }
+            },
+            {
+              "value": "180",
+              "label": {
+                "en": "180 mg/dL (10.0 mmol/L)",
+                "fr": "180 mg/dL (10,0 mmol/L)",
+                "de": "180 mg/dL (10,0 mmol/L)",
+                "es": "180 mg/dL (10,0 mmol/L)"
+              }
+            },
+            {
+              "value": "250",
+              "label": {
+                "en": "250 mg/dL (13.9 mmol/L)",
+                "fr": "250 mg/dL (13,9 mmol/L)",
+                "de": "250 mg/dL (13,9 mmol/L)",
+                "es": "250 mg/dL (13,9 mmol/L)"
+              }
+            },
+            {
+              "value": "300",
+              "label": {
+                "en": "300 mg/dL (16.7 mmol/L)",
+                "fr": "300 mg/dL (16,7 mmol/L)",
+                "de": "300 mg/dL (16,7 mmol/L)",
+                "es": "300 mg/dL (16,7 mmol/L)"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "device_name",
+          "type": "string",
+          "label": {
+            "en": "Device",
+            "fr": "Appareil",
+            "de": "Gerät",
+            "es": "Dispositivo"
+          }
+        },
+        {
+          "key": "glucose",
+          "type": "number",
+          "label": {
+            "en": "Glucose",
+            "fr": "Glycémie",
+            "de": "Glukose",
+            "es": "Glucosa"
+          }
+        },
+        {
+          "key": "unit",
+          "type": "string",
+          "label": {
+            "en": "Unit",
+            "fr": "Unité",
+            "de": "Einheit",
+            "es": "Unidad"
+          }
+        },
+        {
+          "key": "trend",
+          "type": "number",
+          "label": {
+            "en": "Trend (1 rising quickly, 4 steady, 7 falling quickly)",
+            "fr": "Tendance (1 hausse rapide, 4 stable, 7 baisse rapide)",
+            "de": "Trend (1 schnell steigend, 4 stabil, 7 schnell fallend)",
+            "es": "Tendencia (1 subida rápida, 4 estable, 7 bajada rápida)"
+          }
+        },
+        {
+          "key": "trend_arrow",
+          "type": "string",
+          "label": {
+            "en": "Trend arrow",
+            "fr": "Flèche de tendance",
+            "de": "Trendpfeil",
+            "es": "Flecha de tendencia"
+          }
+        },
+        {
+          "key": "delta",
+          "type": "number",
+          "label": {
+            "en": "Change over 5 min",
+            "fr": "Variation sur 5 min",
+            "de": "Änderung in 5 Min.",
+            "es": "Variación en 5 min"
+          }
+        },
+        {
+          "key": "measured_at",
+          "type": "string",
+          "label": {
+            "en": "Measured at (UTC)",
+            "fr": "Mesurée à (UTC)",
+            "de": "Gemessen um (UTC)",
+            "es": "Medida a las (UTC)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "glucose_in_range",
+      "label": {
+        "en": "Glucose back in range",
+        "fr": "Glycémie revenue dans la cible",
+        "de": "Glukose wieder im Zielbereich",
+        "es": "Glucosa de nuevo en el objetivo"
+      },
+      "description": {
+        "en": "The glucose is back in the target range of Nightscout, after a value out of it. Current values only. May be late or missing: never a medical alarm.",
+        "fr": "La glycémie revient dans la cible de Nightscout, après une valeur en dehors. Valeurs à jour seulement. Peut être en retard ou manquer : jamais une alarme médicale.",
+        "de": "Die Glukose ist wieder im Zielbereich von Nightscout, nach einem Wert außerhalb. Nur aktuelle Werte. Kann verspätet sein oder fehlen: nie ein medizinischer Alarm.",
+        "es": "La glucosa vuelve al rango objetivo de Nightscout, tras un valor fuera de él. Solo valores actuales. Puede llegar tarde o faltar: nunca una alarma médica."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "required": false,
+          "label": {
+            "en": "Device (empty: any)",
+            "fr": "Appareil (vide : tous)",
+            "de": "Gerät (leer: alle)",
+            "es": "Dispositivo (vacío: todos)"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "device_name",
+          "type": "string",
+          "label": {
+            "en": "Device",
+            "fr": "Appareil",
+            "de": "Gerät",
+            "es": "Dispositivo"
+          }
+        },
+        {
+          "key": "glucose",
+          "type": "number",
+          "label": {
+            "en": "Glucose",
+            "fr": "Glycémie",
+            "de": "Glukose",
+            "es": "Glucosa"
+          }
+        },
+        {
+          "key": "unit",
+          "type": "string",
+          "label": {
+            "en": "Unit",
+            "fr": "Unité",
+            "de": "Einheit",
+            "es": "Unidad"
+          }
+        },
+        {
+          "key": "trend",
+          "type": "number",
+          "label": {
+            "en": "Trend (1 rising quickly, 4 steady, 7 falling quickly)",
+            "fr": "Tendance (1 hausse rapide, 4 stable, 7 baisse rapide)",
+            "de": "Trend (1 schnell steigend, 4 stabil, 7 schnell fallend)",
+            "es": "Tendencia (1 subida rápida, 4 estable, 7 bajada rápida)"
+          }
+        },
+        {
+          "key": "trend_arrow",
+          "type": "string",
+          "label": {
+            "en": "Trend arrow",
+            "fr": "Flèche de tendance",
+            "de": "Trendpfeil",
+            "es": "Flecha de tendencia"
+          }
+        },
+        {
+          "key": "delta",
+          "type": "number",
+          "label": {
+            "en": "Change over 5 min",
+            "fr": "Variation sur 5 min",
+            "de": "Änderung in 5 Min.",
+            "es": "Variación en 5 min"
+          }
+        },
+        {
+          "key": "measured_at",
+          "type": "string",
+          "label": {
+            "en": "Measured at (UTC)",
+            "fr": "Mesurée à (UTC)",
+            "de": "Gemessen um (UTC)",
+            "es": "Medida a las (UTC)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "glucose_rising_fast",
+      "label": {
+        "en": "Glucose rising fast",
+        "fr": "Glycémie en hausse rapide",
+        "de": "Glukose steigt schnell",
+        "es": "Glucosa en subida rápida"
+      },
+      "description": {
+        "en": "The trend of Nightscout reaches the chosen arrows. Once, until the trend is steady or falling again. Current values only. May be late or missing: never a medical alarm.",
+        "fr": "La tendance de Nightscout atteint les flèches choisies. Une fois, jusqu'à ce que la tendance redevienne stable ou baisse. Valeurs à jour seulement. Peut être en retard ou manquer : jamais une alarme médicale.",
+        "de": "Der Trend von Nightscout erreicht die gewählten Pfeile. Einmal, bis der Trend wieder stabil ist oder fällt. Nur aktuelle Werte. Kann verspätet sein oder fehlen: nie ein medizinischer Alarm.",
+        "es": "La tendencia de Nightscout alcanza las flechas elegidas. Una vez, hasta que la tendencia vuelva a ser estable o baje. Solo valores actuales. Puede llegar tarde o faltar: nunca una alarma médica."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "required": false,
+          "label": {
+            "en": "Device (empty: any)",
+            "fr": "Appareil (vide : tous)",
+            "de": "Gerät (leer: alle)",
+            "es": "Dispositivo (vacío: todos)"
+          }
+        },
+        {
+          "key": "arrows",
+          "type": "select",
+          "required": true,
+          "label": {
+            "en": "Arrows",
+            "fr": "Flèches",
+            "de": "Pfeile",
+            "es": "Flechas"
+          },
+          "options": [
+            {
+              "value": "1",
+              "label": {
+                "en": "↑ or ↑↑",
+                "fr": "↑ ou ↑↑",
+                "de": "↑ oder ↑↑",
+                "es": "↑ o ↑↑"
+              }
+            },
+            {
+              "value": "2",
+              "label": {
+                "en": "↑↑ only",
+                "fr": "↑↑ seulement",
+                "de": "nur ↑↑",
+                "es": "solo ↑↑"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "device_name",
+          "type": "string",
+          "label": {
+            "en": "Device",
+            "fr": "Appareil",
+            "de": "Gerät",
+            "es": "Dispositivo"
+          }
+        },
+        {
+          "key": "glucose",
+          "type": "number",
+          "label": {
+            "en": "Glucose",
+            "fr": "Glycémie",
+            "de": "Glukose",
+            "es": "Glucosa"
+          }
+        },
+        {
+          "key": "unit",
+          "type": "string",
+          "label": {
+            "en": "Unit",
+            "fr": "Unité",
+            "de": "Einheit",
+            "es": "Unidad"
+          }
+        },
+        {
+          "key": "trend",
+          "type": "number",
+          "label": {
+            "en": "Trend (1 rising quickly, 4 steady, 7 falling quickly)",
+            "fr": "Tendance (1 hausse rapide, 4 stable, 7 baisse rapide)",
+            "de": "Trend (1 schnell steigend, 4 stabil, 7 schnell fallend)",
+            "es": "Tendencia (1 subida rápida, 4 estable, 7 bajada rápida)"
+          }
+        },
+        {
+          "key": "trend_arrow",
+          "type": "string",
+          "label": {
+            "en": "Trend arrow",
+            "fr": "Flèche de tendance",
+            "de": "Trendpfeil",
+            "es": "Flecha de tendencia"
+          }
+        },
+        {
+          "key": "delta",
+          "type": "number",
+          "label": {
+            "en": "Change over 5 min",
+            "fr": "Variation sur 5 min",
+            "de": "Änderung in 5 Min.",
+            "es": "Variación en 5 min"
+          }
+        },
+        {
+          "key": "measured_at",
+          "type": "string",
+          "label": {
+            "en": "Measured at (UTC)",
+            "fr": "Mesurée à (UTC)",
+            "de": "Gemessen um (UTC)",
+            "es": "Medida a las (UTC)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "glucose_falling_fast",
+      "label": {
+        "en": "Glucose falling fast",
+        "fr": "Glycémie en baisse rapide",
+        "de": "Glukose fällt schnell",
+        "es": "Glucosa en bajada rápida"
+      },
+      "description": {
+        "en": "The trend of Nightscout reaches the chosen arrows. Once, until the trend is steady or rising again. Current values only. May be late or missing: never a medical alarm.",
+        "fr": "La tendance de Nightscout atteint les flèches choisies. Une fois, jusqu'à ce que la tendance redevienne stable ou monte. Valeurs à jour seulement. Peut être en retard ou manquer : jamais une alarme médicale.",
+        "de": "Der Trend von Nightscout erreicht die gewählten Pfeile. Einmal, bis der Trend wieder stabil ist oder steigt. Nur aktuelle Werte. Kann verspätet sein oder fehlen: nie ein medizinischer Alarm.",
+        "es": "La tendencia de Nightscout alcanza las flechas elegidas. Una vez, hasta que la tendencia vuelva a ser estable o suba. Solo valores actuales. Puede llegar tarde o faltar: nunca una alarma médica."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "required": false,
+          "label": {
+            "en": "Device (empty: any)",
+            "fr": "Appareil (vide : tous)",
+            "de": "Gerät (leer: alle)",
+            "es": "Dispositivo (vacío: todos)"
+          }
+        },
+        {
+          "key": "arrows",
+          "type": "select",
+          "required": true,
+          "label": {
+            "en": "Arrows",
+            "fr": "Flèches",
+            "de": "Pfeile",
+            "es": "Flechas"
+          },
+          "options": [
+            {
+              "value": "1",
+              "label": {
+                "en": "↓ or ↓↓",
+                "fr": "↓ ou ↓↓",
+                "de": "↓ oder ↓↓",
+                "es": "↓ o ↓↓"
+              }
+            },
+            {
+              "value": "2",
+              "label": {
+                "en": "↓↓ only",
+                "fr": "↓↓ seulement",
+                "de": "nur ↓↓",
+                "es": "solo ↓↓"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "device_name",
+          "type": "string",
+          "label": {
+            "en": "Device",
+            "fr": "Appareil",
+            "de": "Gerät",
+            "es": "Dispositivo"
+          }
+        },
+        {
+          "key": "glucose",
+          "type": "number",
+          "label": {
+            "en": "Glucose",
+            "fr": "Glycémie",
+            "de": "Glukose",
+            "es": "Glucosa"
+          }
+        },
+        {
+          "key": "unit",
+          "type": "string",
+          "label": {
+            "en": "Unit",
+            "fr": "Unité",
+            "de": "Einheit",
+            "es": "Unidad"
+          }
+        },
+        {
+          "key": "trend",
+          "type": "number",
+          "label": {
+            "en": "Trend (1 rising quickly, 4 steady, 7 falling quickly)",
+            "fr": "Tendance (1 hausse rapide, 4 stable, 7 baisse rapide)",
+            "de": "Trend (1 schnell steigend, 4 stabil, 7 schnell fallend)",
+            "es": "Tendencia (1 subida rápida, 4 estable, 7 bajada rápida)"
+          }
+        },
+        {
+          "key": "trend_arrow",
+          "type": "string",
+          "label": {
+            "en": "Trend arrow",
+            "fr": "Flèche de tendance",
+            "de": "Trendpfeil",
+            "es": "Flecha de tendencia"
+          }
+        },
+        {
+          "key": "delta",
+          "type": "number",
+          "label": {
+            "en": "Change over 5 min",
+            "fr": "Variation sur 5 min",
+            "de": "Änderung in 5 Min.",
+            "es": "Variación en 5 min"
+          }
+        },
+        {
+          "key": "measured_at",
+          "type": "string",
+          "label": {
+            "en": "Measured at (UTC)",
+            "fr": "Mesurée à (UTC)",
+            "de": "Gemessen um (UTC)",
+            "es": "Medida a las (UTC)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "measurement_stale",
+      "label": {
+        "en": "Measurement too old",
+        "fr": "Mesure trop ancienne",
+        "de": "Messwert zu alt",
+        "es": "Medición demasiado antigua"
+      },
+      "description": {
+        "en": "No new value for the chosen time (sensor, phone, uploader, or Nightscout not answering). Once per threshold, until a new value arrives.",
+        "fr": "Aucune nouvelle valeur depuis la durée choisie (capteur, téléphone, uploader, ou Nightscout qui ne répond pas). Une fois par seuil, jusqu'à la valeur suivante.",
+        "de": "Kein neuer Wert seit der gewählten Dauer (Sensor, Telefon, Uploader oder Nightscout antwortet nicht). Einmal pro Schwelle, bis zum nächsten Wert.",
+        "es": "Ningún valor nuevo durante el tiempo elegido (sensor, teléfono, uploader, o Nightscout no responde). Una vez por umbral, hasta el siguiente valor."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "required": false,
+          "label": {
+            "en": "Device (empty: any)",
+            "fr": "Appareil (vide : tous)",
+            "de": "Gerät (leer: alle)",
+            "es": "Dispositivo (vacío: todos)"
+          }
+        },
+        {
+          "key": "minutes",
+          "type": "select",
+          "required": true,
+          "label": {
+            "en": "No value for",
+            "fr": "Sans valeur depuis",
+            "de": "Kein Wert seit",
+            "es": "Sin valor desde hace"
+          },
+          "options": [
+            {
+              "value": "15",
+              "label": {
+                "en": "15 minutes",
+                "fr": "15 minutes",
+                "de": "15 Minuten",
+                "es": "15 minutos"
+              }
+            },
+            {
+              "value": "30",
+              "label": {
+                "en": "30 minutes",
+                "fr": "30 minutes",
+                "de": "30 Minuten",
+                "es": "30 minutos"
+              }
+            },
+            {
+              "value": "60",
+              "label": {
+                "en": "1 hour",
+                "fr": "1 heure",
+                "de": "1 Stunde",
+                "es": "1 hora"
+              }
+            },
+            {
+              "value": "120",
+              "label": {
+                "en": "2 hours",
+                "fr": "2 heures",
+                "de": "2 Stunden",
+                "es": "2 horas"
+              }
+            },
+            {
+              "value": "240",
+              "label": {
+                "en": "4 hours",
+                "fr": "4 heures",
+                "de": "4 Stunden",
+                "es": "4 horas"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "device_name",
+          "type": "string",
+          "label": {
+            "en": "Device",
+            "fr": "Appareil",
+            "de": "Gerät",
+            "es": "Dispositivo"
+          }
+        },
+        {
+          "key": "stale_for",
+          "type": "number",
+          "label": {
+            "en": "Minutes without a value",
+            "fr": "Minutes sans valeur",
+            "de": "Minuten ohne Wert",
+            "es": "Minutos sin valor"
+          }
+        },
+        {
+          "key": "measured_at",
+          "type": "string",
+          "label": {
+            "en": "Last value at (UTC)",
+            "fr": "Dernière valeur à (UTC)",
+            "de": "Letzter Wert um (UTC)",
+            "es": "Último valor a las (UTC)"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "get_glucose",
+      "label": {
+        "en": "Read the glucose",
+        "fr": "Lire la glycémie",
+        "de": "Glukose lesen",
+        "es": "Leer la glucosa"
       },
-      "timeout_seconds": 15,
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ],
+      "description": {
+        "en": "Reads Nightscout and gives the glucose, its trend and its age to the next actions (e.g. a message).",
+        "fr": "Lit Nightscout et donne la glycémie, sa tendance et son âge aux actions suivantes (ex. un message).",
+        "de": "Liest Nightscout und gibt Glukose, Trend und Alter an die nächsten Aktionen weiter (z. B. eine Nachricht).",
+        "es": "Lee Nightscout y pasa la glucosa, su tendencia y su antigüedad a las acciones siguientes (p. ej. un mensaje)."
+      },
+      "timeout_seconds": 30,
       "outputs": [
         {
-          "key": "signalled",
+          "key": "glucose",
+          "type": "number",
+          "label": {
+            "en": "Glucose",
+            "fr": "Glycémie",
+            "de": "Glukose",
+            "es": "Glucosa"
+          }
+        },
+        {
+          "key": "unit",
+          "type": "string",
+          "label": {
+            "en": "Unit",
+            "fr": "Unité",
+            "de": "Einheit",
+            "es": "Unidad"
+          }
+        },
+        {
+          "key": "trend",
+          "type": "number",
+          "label": {
+            "en": "Trend (1 rising quickly, 4 steady, 7 falling quickly)",
+            "fr": "Tendance (1 hausse rapide, 4 stable, 7 baisse rapide)",
+            "de": "Trend (1 schnell steigend, 4 stabil, 7 schnell fallend)",
+            "es": "Tendencia (1 subida rápida, 4 estable, 7 bajada rápida)"
+          }
+        },
+        {
+          "key": "trend_arrow",
+          "type": "string",
+          "label": {
+            "en": "Trend arrow",
+            "fr": "Flèche de tendance",
+            "de": "Trendpfeil",
+            "es": "Flecha de tendencia"
+          }
+        },
+        {
+          "key": "delta",
+          "type": "number",
+          "label": {
+            "en": "Change over 5 min",
+            "fr": "Variation sur 5 min",
+            "de": "Änderung in 5 Min.",
+            "es": "Variación en 5 min"
+          }
+        },
+        {
+          "key": "age_minutes",
+          "type": "number",
+          "label": {
+            "en": "Age of the value (minutes)",
+            "fr": "Âge de la valeur (minutes)",
+            "de": "Alter des Werts (Minuten)",
+            "es": "Antigüedad del valor (minutos)"
+          }
+        },
+        {
+          "key": "current",
           "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "label": {
+            "en": "Value current",
+            "fr": "Valeur à jour",
+            "de": "Wert aktuell",
+            "es": "Valor actual"
+          }
+        },
+        {
+          "key": "out_of_range",
+          "type": "boolean",
+          "label": {
+            "en": "Out of target range",
+            "fr": "Hors de la cible",
+            "de": "Außerhalb des Zielbereichs",
+            "es": "Fuera del rango objetivo"
+          }
+        },
+        {
+          "key": "measured_at",
+          "type": "string",
+          "label": {
+            "en": "Measured at (UTC)",
+            "fr": "Mesurée à (UTC)",
+            "de": "Gemessen um (UTC)",
+            "es": "Medida a las (UTC)"
+          }
+        },
+        {
+          "key": "sentence",
+          "type": "string",
+          "label": {
+            "en": "Sentence",
+            "fr": "Phrase",
+            "de": "Satz",
+            "es": "Frase"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "glucose",
+      "label": {
+        "en": "Glucose",
+        "fr": "Glycémie",
+        "de": "Glukose",
+        "es": "Glucosa"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "Glucose, trend, age and the curve of the last 3 hours.",
+        "fr": "Glycémie, tendance, âge et la courbe des 3 dernières heures.",
+        "de": "Glukose, Trend, Alter und die Kurve der letzten 3 Stunden.",
+        "es": "Glucosa, tendencia, antigüedad y la curva de las últimas 3 horas."
+      },
+      "icon": "droplet",
+      "action_timeout_seconds": 30
+    }
+  ],
+  "actions": [
+    {
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
+      "description": {
+        "en": "Reads Nightscout now: version, target range and the last glucose.",
+        "fr": "Lit Nightscout tout de suite : version, cible et dernière glycémie.",
+        "de": "Liest Nightscout sofort: Version, Zielbereich und letzte Glukose.",
+        "es": "Lee Nightscout ahora: versión, rango objetivo y última glucosa."
+      },
+      "timeout_seconds": 60
     }
   ]
 }

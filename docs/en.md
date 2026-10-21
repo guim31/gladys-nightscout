@@ -1,61 +1,164 @@
-# Demo Devices Template
+# Nightscout
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+**NOT A MEDICAL DEVICE.** This integration is a convenience for the home: it
+copies into Gladys what your Nightscout site shows. Never use it to decide a
+treatment or a dose. Its values and its alerts may be late, wrong or missing
+(network, phone, sensor, Gladys restarting…). Keep the alarms of your sensor,
+your pump or your follow app: they are the ones to trust.
 
-## What you get
+[Nightscout](https://nightscout.github.io/) is the open-source,
+self-hosted site where a continuous glucose monitor (Dexcom, FreeStyle Libre,
+Medtronic… through xDrip+, AndroidAPS, Loop, Spike and others) sends its
+values. This integration reads your site and brings into Gladys the current
+glucose, its trend and the age of the last value, scene triggers for highs,
+lows, fast changes and missing data, a scene action to put the glucose in a
+message, and a dashboard widget with the curve of the last three hours.
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+Read only: Gladys never writes to Nightscout. Your site may run at home or at
+a hosting provider (the device badge says "local" or "cloud").
 
-## Configuration
+Tested against a real Nightscout in Docker (15.0.8, with MongoDB), fed with
+simulated values: a fast fall, highs, lows, missing data, with an access token,
+with the API_SECRET and on a public site.
+Developed without the hardware: feedback welcome on
+[the issues](https://github.com/guim31/gladys-nightscout/issues).
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+## What you need
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+- Gladys Assistant 5.1.0 or later.
+- A Nightscout site reachable from Gladys (version 14 or 15), receiving the
+  values of a sensor.
+- To read it: an access token with the `readable` role (recommended), or the
+  site's API_SECRET, or nothing if the site is public.
 
-## Actions
+## Getting started
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+### 1. Create a read-only access token
 
-## Scenes
+In Nightscout, open the menu, **Admin tools**, then **Add new Subject**: give
+it a name (`gladys`) and the `readable` role, save. Copy the token shown in the
+list (`gladys-0123456789abcdef`). A token can only read, unlike the
+API_SECRET, which also allows writing.
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+### 2. Configure the integration
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+In Gladys, **Integrations → Nightscout → Configuration**:
+
+- **Nightscout address**: the address of your site, as in the browser
+  (`https://my-site.example.org`, or `http://192.168.1.20:1337` at home). A
+  copied address with `?token=…` works too.
+- **Access token (recommended)**: the token of step 1. Empty for a public
+  site.
+- **API_SECRET (if no token)**: only when you have no token. It is sent
+  hashed, never stored in the logs.
+- **Glucose unit**: as in Nightscout (default), mg/dL or mmol/L.
+- **Refresh interval**: 1 minute (default), 2 or 5 minutes.
+- **A value is current for**: 15 minutes by default. Beyond, the glucose is
+  no longer published as current and no glucose trigger fires.
+- **Language of the names**: the language of the feature names and of the
+  sentences sent to scenes.
+
+Save, then **Test the connection**: Gladys answers with the version of the
+site, its target range and the last glucose.
+
+### 3. Add the device
+
+In the **Discover** tab, add the Nightscout device. The scene triggers, the
+scene action and the widget work even if you do not add it.
+
+## The device
+
+One device for the site, with these features:
+
+| Feature                                                 | Value                                                        |
+| ------------------------------------------------------- | ------------------------------------------------------------ |
+| Glucose (mg/dL) or Glucose (mmol/L)                     | the last current value                                       |
+| Change over 5 min (mg/dL) or Change over 5 min (mmol/L) | the change since the previous value, scaled to 5 minutes     |
+| Trend (1 ↑↑, 4 →, 7 ↓↓)                                 | 1 rising quickly … 4 steady … 7 falling quickly, 8-9 unknown |
+| Trend arrow                                             | ↑↑ ↑ ↗ → ↘ ↓ ↓↓                                              |
+| Measurement age                                         | minutes since the last value                                 |
+| Out of target range                                     | 1 when the value is out of the target range of the site      |
+| Uploader battery                                        | the phone or uploader battery, when the site reports it      |
+
+The trend numbers are the ones of the Dexcom and LibreLinkUp integrations, so
+your scenes read the same way. Changing the unit adds a feature in the new
+unit: update the device from the Discover tab, the old feature keeps its
+history.
+
+Health data: no history is kept by default. You can switch it on per feature
+in Gladys.
 
 ## Dashboard
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+The **Glucose** widget shows the glucose colored by the range of the site
+(green in range, orange low or high, red urgent), the arrow and the change, the
+age of the value, and the curve of the last three hours. When no value is
+current, a line says so. **Refresh** reads Nightscout at once.
+
+## Scenes
+
+### Triggers
+
+Every trigger has an optional **Device** field (empty: any). The glucose
+triggers only fire on a current value, read at the chosen refresh interval.
+
+- **Glucose low**: below the low target of Nightscout, 70 or 80 mg/dL. Once
+  per crossing; again after a value 5 mg/dL above, or after a gap in the data.
+- **Glucose very low**: below the urgent low of Nightscout or 54 mg/dL.
+- **Glucose high**: above the high target of Nightscout, its urgent high, 180,
+  250 or 300 mg/dL. Once per crossing; again after a value 5 mg/dL below.
+- **Glucose back in range**: back in the target range of the site (5 mg/dL
+  inside it) after a value out of it.
+- **Glucose rising fast** / **Glucose falling fast**: the trend reaches ↑ or
+  ↑↑ (or ↑↑ only), ↓ or ↓↓ (or ↓↓ only). Once, until the trend is steady again.
+- **Measurement too old**: no new value for 15 minutes, 30 minutes, 1, 2 or
+  4 hours (sensor, phone, uploader, or Nightscout not answering).
+
+Variables: the device name, the glucose and its unit, the trend number and
+arrow, the change over 5 minutes, the time of the value (UTC); for "too old",
+the minutes without a value.
+
+The thresholds of Nightscout are the ones of its settings (`BG_TARGET_BOTTOM`,
+`BG_TARGET_TOP`, `BG_LOW`, `BG_HIGH`), read at every refresh.
+
+### Actions
+
+- **Read the glucose**: reads Nightscout and gives the next actions the
+  glucose, its unit, the trend, the arrow, the change, the age in minutes,
+  whether it is current, whether it is out of range, the time of the value and
+  a ready sentence: `Glucose 142 mg/dL → +3, 4 min ago`.
+
+### Scene ideas
+
+- At night, **Glucose very low** → turn on the bedroom light at 30 % and send
+  a Telegram message to the parents with `{{triggerEvent.data.glucose}}`.
+- **Measurement too old** (30 minutes) → a notification "check the sensor and
+  the phone".
+- A button on the dashboard → **Read the glucose** → say the sentence on the
+  living room speaker.
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **Access refused**: the token is wrong or its role cannot read; with the
+  API_SECRET, check it is the one of the site (12 characters at least).
+- **No Nightscout at this address**: check the address in a browser; a site
+  in a sub-folder needs its path (`https://example.org/ns`).
+- **The address redirects**: enter the `https://` address.
+- **Nightscout answers with an error**: its database (MongoDB) is down or
+  full.
+- **No current value**: the sensor, the phone or the uploader app stopped
+  sending; Nightscout shows the same.
+- More details: set `LOG_LEVEL=debug` on the integration. The logs never show
+  the token, the secret nor any glucose value.
+
+## Limits
+
+- **NOT A MEDICAL DEVICE**: no guarantee of delay or delivery.
+- One Nightscout site per integration.
+- Read at the refresh interval (1 minute at best): a trigger may come one
+  minute or more after Nightscout's own alarm.
+- Not read: insulin on board, carbs on board, pump and loop details, the
+  treatments.
+- The thresholds offered in mg/dL are fixed choices; the ones of Nightscout
+  follow your site.
+- Unofficial integration, not affiliated with the Nightscout project.
