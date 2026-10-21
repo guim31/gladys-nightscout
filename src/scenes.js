@@ -17,7 +17,11 @@ async function readable(hub) {
   if (!hub.client) {
     hub.assertReadable();
   }
-  await hub.refreshIfStale();
+  if (hub.error) {
+    await hub.pollNow();
+  } else {
+    await hub.refreshIfStale();
+  }
   hub.assertReadable();
 }
 

@@ -19,7 +19,7 @@
 import { DEVICE_TRANSPORTS, createLogger } from '@gladysassistant/integration-sdk';
 import { TRIGGERS, emptyAlarmState, evaluate, loadAlarmState } from './alarms.js';
 import { hostOf, isPrivateHost, normalizeConfig, siteIdOf } from './config.js';
-import { buildDevice, deviceValues, siteIds } from './devices.js';
+import { FEATURE_KEYS, buildDevice, deviceValues, siteIds } from './devices.js';
 import {
   TREND_ARROWS,
   UNIT_LABELS,
@@ -30,7 +30,12 @@ import {
   isOutOfRange,
   trendOf,
 } from './glucose.js';
-import { ERROR_KINDS, NightscoutClient, NightscoutError } from './nightscout/client.js';
+import {
+  DEFAULT_THRESHOLDS,
+  ERROR_KINDS,
+  NightscoutClient,
+  NightscoutError,
+} from './nightscout/client.js';
 import { ProblemLog } from './problems.js';
 import {
   CONNECTION_TEXT,
@@ -291,6 +296,8 @@ export class NightscoutHub {
     }
     // No new value can be seen: "no measurement for N minutes" still counts.
     await this.runAlarms();
+    // The age of the last value still grows (the other values stay).
+    await this.publishStates();
     return wasError !== err.kind;
   }
 
@@ -358,14 +365,15 @@ export class NightscoutHub {
   // --- Scene events ------------------------------------------------------------
 
   async runAlarms() {
-    const reading = this.reading;
-    const thresholds = this.status?.thresholds;
-    if (!this.siteId || !thresholds) {
+    if (!this.siteId) {
       return;
     }
+    // Without thresholds (Nightscout unreachable since the start), only the
+    // "too old" triggers are evaluated, from the date kept in /data.
     const { state, events } = evaluate(this.saved.alarms, {
-      reading,
-      thresholds,
+      reading: this.status ? this.reading : null,
+      previousDate: this.entries[1]?.date ?? null,
+      thresholds: this.status?.thresholds ?? null,
       now: this.now(),
       staleMs: this.config.staleMs,
     });
@@ -384,6 +392,8 @@ export class NightscoutHub {
     const view = this.view();
     const { reading } = view;
     const unit = view.unit;
+    // The values may be unread (Nightscout down since a restart): /data knows.
+    const lastDate = reading?.date ?? this.saved.alarms.lastDate;
     const all = {
       device: siteIds(this.gladys, this.siteId).device,
       device_name: this.deviceName(),
@@ -392,8 +402,8 @@ export class NightscoutHub {
       trend: reading?.trend ?? 0,
       trend_arrow: TREND_ARROWS[reading?.trend ?? 0],
       delta: view.delta === null ? 0 : inUnit(view.delta, unit),
-      measured_at: reading ? new Date(reading.date).toISOString() : '',
-      stale_for: view.ageMinutes ?? 0,
+      measured_at: lastDate ? new Date(lastDate).toISOString() : '',
+      stale_for: lastDate ? Math.max(0, Math.floor((this.now() - lastDate) / 60_000)) : 0,
     };
     const keys = key === TRIGGERS.STALE ? STALE_VARIABLES : GLUCOSE_VARIABLES;
     return {
@@ -405,9 +415,8 @@ export class NightscoutHub {
 
   async fire(key, level) {
     const data = this.eventData(key, level);
-    logger.info(
-      `Scene event ${key}${Object.values(level).length ? ` (${Object.values(level)})` : ''}`,
-    );
+    // Debug only, without the threshold: a health event is not for the logs.
+    logger.debug(`Scene event ${key}`);
     try {
       await this.gladys.publishSceneEvent(key, data);
     } catch (err) {
@@ -493,12 +502,15 @@ export class NightscoutHub {
    */
   async publishStates() {
     const created = this.createdDevice();
-    if (!created || this.readAt === 0 || this.error) {
+    if (!created || this.readAt === 0) {
       return;
     }
     const own = new Set((created.features ?? []).map((feature) => feature.external_id));
+    // Nightscout down: the age of the last value still grows.
+    const kept = this.error ? new Set([FEATURE_KEYS.AGE, FEATURE_KEYS.BATTERY]) : null;
     const states = deviceValues(this.gladys, this.siteId, this.view(), this.now())
       .filter((value) => own.has(value.device_feature_external_id))
+      .filter((value) => !kept || kept.has(value.key))
       .map(({ key: _key, ...state }) => state);
     if (states.length === 0) {
       return;
@@ -593,7 +605,8 @@ export class NightscoutHub {
         message[language] = pick(status.message, language);
         continue;
       }
-      const { bgTargetBottom, bgTargetTop } = this.status.thresholds;
+      // A reconfiguration during the test may leave nothing read yet.
+      const { bgTargetBottom, bgTargetTop } = this.status?.thresholds ?? DEFAULT_THRESHOLDS;
       const unit = this.unit;
       const target = text.thresholds(
         formatGlucose(inUnit(bgTargetBottom, unit), unit, language),
@@ -601,7 +614,7 @@ export class NightscoutHub {
       );
       const parts = [
         text.ok,
-        `${this.status.version ? `v${this.status.version}, ` : ''}${target}`,
+        `${this.status?.version ? `v${this.status.version}, ` : ''}${target}`,
         this.sentence(language),
       ];
       message[language] = labelled('Nightscout', parts.join(' · '), language);

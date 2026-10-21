@@ -296,3 +296,65 @@ test('triggers: an old value arriving late fires nothing but arms the stale ones
   state = result.state;
   assert.equal(state.lastDate, 60 * 60_000);
 });
+
+test('triggers: no flood on the edge of the target, nor from a late uploader, nor after an outage', () => {
+  const thresholds = DEFAULT_THRESHOLDS;
+  const staleMs = 15 * 60_000;
+  const minute = 60_000;
+  let state = evaluate(emptyAlarmState(), {
+    reading: { date: 0, sgv: 120, trend: 4 },
+    thresholds,
+    now: 0,
+    staleMs,
+  }).state;
+  const fired = [];
+  const step = (sgv, at, { now = at, previousDate = null } = {}) => {
+    const result = evaluate(state, {
+      reading: { date: at, sgv, trend: 4 },
+      previousDate,
+      thresholds,
+      now,
+      staleMs,
+    });
+    state = result.state;
+    fired.push(...result.events.map(([key, level]) => `${key}:${Object.values(level).join('')}`));
+  };
+  // Hovering on the low target: one low, no "back in range" until 85.
+  for (const [index, sgv] of [79, 81, 79, 81, 79, 81].entries()) {
+    step(sgv, (index + 1) * 5 * minute);
+  }
+  assert.deepEqual(fired, ['glucose_low:nightscout', 'glucose_low:80']);
+  step(90, 35 * minute);
+  assert.deepEqual(fired.slice(2), ['glucose_in_range:']);
+
+  // An uploader 20 minutes late: "too old" (15) once, not at every value.
+  fired.length = 0;
+  for (let i = 0; i < 4; i += 1) {
+    const at = (40 + i * 5) * minute;
+    step(120, at, { now: at + 20 * minute, previousDate: at - 5 * minute });
+  }
+  assert.deepEqual(fired, ['measurement_stale:15']);
+
+  // Nightscout down 30 minutes while the sensor kept sending every 5 minutes:
+  // still low afterwards, but no gap in the data, so no new event.
+  fired.length = 0;
+  step(70, 80 * minute, { previousDate: 75 * minute });
+  assert.deepEqual(fired, ['glucose_low:nightscout', 'glucose_low:80']);
+  fired.length = 0;
+  step(68, 115 * minute, { previousDate: 110 * minute });
+  assert.deepEqual(fired, ['glucose_low:70']);
+});
+
+test('triggers without thresholds (nothing read since a restart): "too old" only', () => {
+  const saved = { ...emptyAlarmState(), lastDate: 0 };
+  const result = evaluate(saved, {
+    reading: null,
+    thresholds: null,
+    now: 31 * 60_000,
+    staleMs: 15 * 60_000,
+  });
+  assert.deepEqual(
+    result.events.map(([, level]) => level.minutes),
+    ['15', '30'],
+  );
+});

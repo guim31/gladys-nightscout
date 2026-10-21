@@ -235,6 +235,40 @@ test('Nightscout down: unreachable badge and status, "too old" still fires, back
   assert.deepEqual(world.fake.connectionStatus, { connected: true });
 });
 
+test('restarted while Nightscout is down: "too old" still fires, the age still grows', async (t) => {
+  const clock = createClock();
+  const world = await createWorld({ clock });
+  await createDevices(world);
+  await world.app.stop();
+  const nightscout = new FakeNightscout();
+  nightscout.down = true;
+  const again = await createWorld({
+    clock,
+    nightscout,
+    dataDir: world.dataDir,
+    devices: world.fake.discoveredDevices,
+  });
+  t.after(() => again.app.stop());
+  clock.advance(40 * MINUTE);
+  await again.hub.pollNow();
+  const stale = events(again, TRIGGERS.STALE);
+  assert.deepEqual(
+    stale.map((e) => e.data.minutes),
+    ['15', '30'],
+  );
+  assert.equal(stale[0].data.stale_for, 41);
+  assert.equal(stale[0].data.measured_at, new Date(world.nightscout.entries[0].date).toISOString());
+
+  // Down after a first reading: the age keeps growing, the glucose stays.
+  const live = await createWorld();
+  t.after(() => live.app.stop());
+  await createDevices(live);
+  live.nightscout.down = true;
+  live.clock.advance(30 * MINUTE);
+  await live.hub.pollNow();
+  assert.equal(live.fake.lastState(idsOf(live).feature(FEATURE_KEYS.AGE)), 31);
+});
+
 test('a site on the local network gets the local badge', async (t) => {
   const nightscout = new FakeNightscout();
   const url = 'http://192.168.1.20:1337';

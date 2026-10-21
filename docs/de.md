@@ -115,8 +115,8 @@ Intervall.
 - **Glukose hoch**: über der oberen Zielgrenze von Nightscout, „dringend hoch“,
   180, 250 oder 300 mg/dL. Einmal pro Überschreitung; erneut nach einem Wert
   5 mg/dL darunter.
-- **Glukose wieder im Zielbereich**: zurück im Zielbereich der Seite nach einem
-  Wert außerhalb.
+- **Glukose wieder im Zielbereich**: zurück im Zielbereich der Seite (5 mg/dL
+  innerhalb) nach einem Wert außerhalb.
 - **Glukose steigt schnell** / **Glukose fällt schnell**: Der Trend erreicht ↑
   oder ↑↑ (oder nur ↑↑), ↓ oder ↓↓ (oder nur ↓↓). Einmal, bis der Trend wieder
   stabil ist.

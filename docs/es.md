@@ -114,8 +114,8 @@ la actualización elegida.
 - **Glucosa alta**: por encima del objetivo alto de Nightscout, de su alto
   urgente, de 180, 250 o 300 mg/dL. Una vez por cruce; de nuevo tras un valor
   5 mg/dL por debajo.
-- **Glucosa de nuevo en el objetivo**: vuelta al rango objetivo del sitio tras
-  un valor fuera de él.
+- **Glucosa de nuevo en el objetivo**: vuelta al rango objetivo del sitio
+  (5 mg/dL dentro) tras un valor fuera de él.
 - **Glucosa en subida rápida** / **Glucosa en bajada rápida**: la tendencia
   alcanza ↑ o ↑↑ (o solo ↑↑), ↓ o ↓↓ (o solo ↓↓). Una vez, hasta que la
   tendencia vuelva a ser estable.

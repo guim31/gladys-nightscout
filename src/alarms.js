@@ -12,14 +12,15 @@
 //   glucose_high                     a current value above the threshold;
 //                                    armed again 5 mg/dL below it
 //   glucose_in_range                 a current value back in the target range
-//                                    of the site, after one out of it
+//                                    of the site (5 mg/dL inside), after one
+//                                    out of it
 //   glucose_rising_fast / _falling_  the trend reaches ↑ (or ↑↑ only); armed
 //                                    again once it is steady or reversed
 //   measurement_stale                no new value for N minutes; armed again
 //                                    by the next value
 //
 // "Current": not older than the delay of the configuration. A value arriving
-// after a gap longer than that arms every glucose trigger again: a low still
+// after a gap in the data longer than that arms every glucose trigger again: a low still
 // there after hours without data is announced again. The first reading after
 // an installation (no saved state) only records what is crossed: a high going
 // on for an hour is not news.
@@ -123,11 +124,12 @@ export function loadAlarmState(saved) {
  * @param {object} state from emptyAlarmState / loadAlarmState (not changed)
  * @param {object} options
  * @param {{ date: number, sgv: number, trend: number }|null} options.reading newest value
- * @param {object} options.thresholds of the site (mg/dL)
+ * @param {number|null} [options.previousDate] date of the value before it, in the data
+ * @param {object|null} options.thresholds of the site (mg/dL); null: the stale triggers only
  * @param {number} options.now
  * @param {number} options.staleMs delay after which a value is not current
  */
-export function evaluate(state, { reading, thresholds, now, staleMs }) {
+export function evaluate(state, { reading, previousDate = null, thresholds, now, staleMs }) {
   const next = structuredClone(state);
   const events = [];
   // Nothing saved: this first reading sets the state, without events.
@@ -139,9 +141,17 @@ export function evaluate(state, { reading, thresholds, now, staleMs }) {
     }
   };
 
-  if (reading && (state.lastDate === null || reading.date > state.lastDate)) {
-    next.reached[TRIGGERS.STALE] = [];
-    if (state.lastDate !== null && reading.date - state.lastDate > staleMs) {
+  if (reading && thresholds && (state.lastDate === null || reading.date > state.lastDate)) {
+    // A value already older than a level does not arm it again: a late
+    // uploader would announce "too old" at every value.
+    const age = now - reading.date;
+    next.reached[TRIGGERS.STALE] = next.reached[TRIGGERS.STALE].filter(
+      (level) => age >= Number(level) * 60_000,
+    );
+    // A gap in the data itself, not in our readings: Nightscout or the
+    // integration down while the sensor kept sending is no gap.
+    const before = previousDate ?? state.lastDate;
+    if (state.lastDate !== null && reading.date - before > staleMs) {
       // After a gap, what is still crossed is announced again.
       for (const trigger of [...GLUCOSE_TRIGGERS, ...TREND_TRIGGERS]) {
         next.reached[trigger] = [];
@@ -174,11 +184,19 @@ export function evaluate(state, { reading, thresholds, now, staleMs }) {
           }
         }
       }
-      const out = isOutOfRange(sgv, thresholds);
-      if (state.outOfRange === true && !out && !baseline) {
-        events.push([TRIGGERS.IN_RANGE, {}]);
+      // Back in range 5 mg/dL inside the target only: a value hovering on its
+      // edge would announce it at every value.
+      const inside =
+        sgv >= thresholds.bgTargetBottom + HYSTERESIS_MGDL &&
+        sgv <= thresholds.bgTargetTop - HYSTERESIS_MGDL;
+      if (isOutOfRange(sgv, thresholds)) {
+        next.outOfRange = true;
+      } else if (inside || state.outOfRange !== true) {
+        if (state.outOfRange === true && !baseline) {
+          events.push([TRIGGERS.IN_RANGE, {}]);
+        }
+        next.outOfRange = false;
       }
-      next.outOfRange = out;
     }
   }
 

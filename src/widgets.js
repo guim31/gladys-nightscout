@@ -71,7 +71,8 @@ function message(text, language) {
 /** The age tile: "4 min" with "Measured" in English ("4 min ago" is too long). */
 const ageValue = (minutes, language) => {
   const text = ageText(minutes, language);
-  return language === 'en' ? `${text} ago` : text;
+  // A tile value holds 12 characters: "1000 days ago" does not fit.
+  return language === 'en' && text.length <= 8 ? `${text} ago` : text;
 };
 
 async function get(hub, { language = 'en' }) {

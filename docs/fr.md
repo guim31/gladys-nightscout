@@ -115,8 +115,8 @@ rafraîchissement choisi.
 - **Glycémie haute** : au-dessus de la cible haute de Nightscout, de son haut
   urgent, de 180, 250 ou 300 mg/dL. Une fois par passage ; de nouveau après une
   valeur 5 mg/dL en dessous.
-- **Glycémie revenue dans la cible** : retour dans la cible du site après une
-  valeur en dehors.
+- **Glycémie revenue dans la cible** : retour dans la cible du site (5 mg/dL
+  à l'intérieur) après une valeur en dehors.
 - **Glycémie en hausse rapide** / **Glycémie en baisse rapide** : la tendance
   atteint ↑ ou ↑↑ (ou ↑↑ seulement), ↓ ou ↓↓ (ou ↓↓ seulement). Une fois,
   jusqu'à ce que la tendance redevienne stable.

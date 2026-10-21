@@ -234,7 +234,10 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
 - **Déclencheurs à seuil** : le cœur ne filtre que par égalité ; un événement par seuil franchi,
   avec le seuil (`threshold`, `arrows`, `minutes`) dans ses données (même schéma que gladys-dexcom).
   État dans `/data` (aucune glycémie) ; première lecture sans état = référence, sans événement ; un
-  trou plus long que le délai « à jour » réarme les seuils.
+  trou **dans les données** (écart entre deux valeurs de Nightscout, pas entre deux lectures) plus long
+  que le délai « à jour » réarme les seuils ; « revenue dans la cible » demande 5 mg/dL de marge ; un
+  uploader en retard ne réarme pas « trop ancienne » ; sans `status.json` lu (Nightscout injoignable
+  depuis le démarrage), seuls les « trop ancienne » sont évalués, depuis la date gardée dans `/data`.
 - Données de santé : `keep_history: false` partout, rien dans les journaux (un test le vérifie).
 - Le badge : `local` si l'hôte est privé (RFC 1918, CGNAT, `.local`, nom sans point), `cloud`
   sinon ; 192.0.2.x des tests est donc « cloud ».

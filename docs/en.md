@@ -107,8 +107,8 @@ triggers only fire on a current value, read at the chosen refresh interval.
 - **Glucose very low**: below the urgent low of Nightscout or 54 mg/dL.
 - **Glucose high**: above the high target of Nightscout, its urgent high, 180,
   250 or 300 mg/dL. Once per crossing; again after a value 5 mg/dL below.
-- **Glucose back in range**: back in the target range of the site after a
-  value out of it.
+- **Glucose back in range**: back in the target range of the site (5 mg/dL
+  inside it) after a value out of it.
 - **Glucose rising fast** / **Glucose falling fast**: the trend reaches ↑ or
   ↑↑ (or ↑↑ only), ↓ or ↓↓ (or ↓↓ only). Once, until the trend is steady again.
 - **Measurement too old**: no new value for 15 minutes, 30 minutes, 1, 2 or
