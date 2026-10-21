@@ -1,0 +1,175 @@
+# Nightscout
+
+**NO ES UN DISPOSITIVO MÉDICO.** Esta integración es una comodidad para el
+hogar: copia en Gladys lo que muestra su sitio Nightscout. No la use nunca
+para decidir un tratamiento o una dosis. Sus valores y sus alertas pueden
+llegar tarde, ser erróneos o faltar (red, teléfono, sensor, reinicio de
+Gladys…). Conserve las alarmas de su sensor, de su bomba o de su aplicación de
+seguimiento: son ellas las que cuentan.
+
+[Nightscout](https://nightscout.github.io/) es el sitio libre y autoalojado
+al que un sensor de glucosa continuo (Dexcom, FreeStyle Libre, Medtronic… a
+través de xDrip+, AndroidAPS, Loop, Spike y otros) envía sus valores. Esta
+integración lee su sitio y trae a Gladys la glucosa actual, su tendencia y la
+antigüedad del último valor, disparadores de escena para hiperglucemias,
+hipoglucemias, cambios rápidos y datos que faltan, una acción de escena para
+poner la glucosa en un mensaje, y un widget de panel con la curva de las
+últimas tres horas.
+
+Solo lectura: Gladys nunca escribe en Nightscout. Su sitio puede funcionar en
+casa o en un proveedor de alojamiento (la insignia del dispositivo indica
+«local» o «nube»).
+
+Probada con un Nightscout real en Docker (15.0.8, con MongoDB), alimentado con
+valores simulados: una bajada rápida, valores altos y bajos, datos que faltan,
+con un token de acceso, con el API_SECRET y en un sitio público. Desarrollada
+sin el hardware: sus comentarios son bienvenidos en
+[las issues](https://github.com/guim31/gladys-nightscout/issues).
+
+## Lo que necesita
+
+- Gladys Assistant 5.1.0 o posterior.
+- Un sitio Nightscout accesible desde Gladys (versión 14 o 15) que reciba los
+  valores de un sensor.
+- Para leerlo: un token de acceso con el rol `readable` (recomendado), o el
+  API_SECRET del sitio, o nada si el sitio es público.
+
+## Puesta en marcha
+
+### 1. Crear un token de acceso de lectura
+
+En Nightscout, abra el menú, **Herramientas de administración**, luego
+**Añadir sujeto**: dele un nombre (`gladys`) y el rol `readable`, guarde.
+Copie el token que aparece en la lista (`gladys-0123456789abcdef`). Un token
+solo puede leer, a diferencia del API_SECRET, que también permite escribir.
+
+### 2. Configurar la integración
+
+En Gladys, **Integraciones → Nightscout → Configuración**:
+
+- **Dirección de Nightscout**: la dirección de su sitio, como en el navegador
+  (`https://mi-sitio.example.org`, o `http://192.168.1.20:1337` en casa). Una
+  dirección copiada con `?token=…` también sirve.
+- **Token de acceso (recomendado)**: el token del paso 1. Vacío para un sitio
+  público.
+- **API_SECRET (sin token)**: solo si no tiene token. Se envía con hash y nunca
+  se escribe en los registros.
+- **Unidad de glucosa**: como en Nightscout (por defecto), mg/dL o mmol/L.
+- **Intervalo de actualización**: 1 minuto (por defecto), 2 o 5 minutos.
+- **Un valor es actual durante**: 15 minutos por defecto. Después, la glucosa
+  ya no se publica como actual y no se activa ningún disparador de glucosa.
+- **Idioma de los nombres**: el idioma de los nombres de funciones y de las
+  frases enviadas a las escenas.
+
+Guarde y luego **Probar la conexión**: Gladys responde con la versión del
+sitio, su rango objetivo y la última glucosa.
+
+### 3. Añadir el dispositivo
+
+En la pestaña **Descubrir**, añada el dispositivo Nightscout. Los
+disparadores, la acción de escena y el widget funcionan aunque no lo añada.
+
+## El dispositivo
+
+Un dispositivo para el sitio, con estas funciones:
+
+| Función                                                  | Valor                                                          |
+| -------------------------------------------------------- | -------------------------------------------------------------- |
+| Glucosa (mg/dL) o Glucosa (mmol/L)                       | el último valor actual                                         |
+| Variación en 5 min (mg/dL) o Variación en 5 min (mmol/L) | el cambio desde el valor anterior, llevado a 5 minutos         |
+| Tendencia (1 ↑↑, 4 →, 7 ↓↓)                              | 1 subida rápida … 4 estable … 7 bajada rápida, 8-9 desconocida |
+| Flecha de tendencia                                      | ↑↑ ↑ ↗ → ↘ ↓ ↓↓                                                |
+| Antigüedad de la medición                                | minutos desde el último valor                                  |
+| Fuera del rango objetivo                                 | 1 cuando el valor sale del rango objetivo del sitio            |
+| Batería del uploader                                     | la batería del teléfono o del uploader, si el sitio la indica  |
+
+Los números de tendencia son los de las integraciones Dexcom y LibreLinkUp:
+sus escenas se leen igual. Cambiar la unidad añade una función en la nueva
+unidad: actualice el dispositivo desde la pestaña Descubrir, la antigua
+conserva su historial.
+
+Datos de salud: no se guarda ningún historial por defecto. Puede activarlo
+función por función en Gladys.
+
+## Panel
+
+El widget **Glucosa** muestra la glucosa coloreada según el rango del sitio
+(verde en el objetivo, naranja baja o alta, rojo urgente), la flecha y el
+cambio, la antigüedad del valor y la curva de las últimas tres horas. Cuando
+ningún valor es actual, una línea lo indica. **Actualizar** lee Nightscout al
+instante.
+
+## Escenas
+
+### Disparadores
+
+Cada disparador tiene un campo **Dispositivo** opcional (vacío: todos). Los
+disparadores de glucosa solo se activan con un valor actual, leído al ritmo de
+la actualización elegida.
+
+- **Glucosa baja**: por debajo del objetivo bajo de Nightscout, 70 u
+  80 mg/dL. Una vez por cruce; de nuevo tras un valor 5 mg/dL por encima, o
+  tras un hueco en los datos.
+- **Glucosa muy baja**: por debajo del bajo urgente de Nightscout o 54 mg/dL.
+- **Glucosa alta**: por encima del objetivo alto de Nightscout, de su alto
+  urgente, de 180, 250 o 300 mg/dL. Una vez por cruce; de nuevo tras un valor
+  5 mg/dL por debajo.
+- **Glucosa de nuevo en el objetivo**: vuelta al rango objetivo del sitio tras
+  un valor fuera de él.
+- **Glucosa en subida rápida** / **Glucosa en bajada rápida**: la tendencia
+  alcanza ↑ o ↑↑ (o solo ↑↑), ↓ o ↓↓ (o solo ↓↓). Una vez, hasta que la
+  tendencia vuelva a ser estable.
+- **Medición demasiado antigua**: ningún valor nuevo desde hace 15 minutos,
+  30 minutos, 1, 2 o 4 horas (sensor, teléfono, uploader, o Nightscout no
+  responde).
+
+Variables: el nombre del dispositivo, la glucosa y su unidad, el número y la
+flecha de tendencia, la variación en 5 minutos, la hora del valor (UTC); para
+«demasiado antigua», los minutos sin valor.
+
+Los umbrales de Nightscout son los de su configuración (`BG_TARGET_BOTTOM`,
+`BG_TARGET_TOP`, `BG_LOW`, `BG_HIGH`), leídos en cada actualización.
+
+### Acciones
+
+- **Leer la glucosa**: lee Nightscout y pasa a las acciones siguientes la
+  glucosa, su unidad, la tendencia, la flecha, la variación, la antigüedad en
+  minutos, si es actual, si está fuera del rango, la hora del valor y una frase
+  lista: `Glucosa 142 mg/dL → +3, hace 4 min`.
+
+### Ideas de escenas
+
+- Por la noche, **Glucosa muy baja** → encender la luz del dormitorio al 30 %
+  y enviar un mensaje de Telegram a los padres con
+  `{{triggerEvent.data.glucose}}`.
+- **Medición demasiado antigua** (30 minutos) → una notificación «compruebe el
+  sensor y el teléfono».
+- Un botón del panel → **Leer la glucosa** → decir la frase en el altavoz del
+  salón.
+
+## Solución de problemas
+
+- **Acceso denegado**: el token es incorrecto o su rol no permite leer; con el
+  API_SECRET, compruebe que es el del sitio (12 caracteres como mínimo).
+- **No hay ningún Nightscout en esta dirección**: compruebe la dirección en un
+  navegador; un sitio en una subcarpeta necesita su ruta
+  (`https://example.org/ns`).
+- **La dirección redirige**: introduzca la dirección `https://`.
+- **Nightscout responde con un error**: su base de datos (MongoDB) está parada
+  o llena.
+- **Ningún valor actual**: el sensor, el teléfono o la aplicación de envío ya
+  no envían; Nightscout muestra lo mismo.
+- Más detalles: configure `LOG_LEVEL=debug` en la integración. Los registros
+  nunca muestran el token, el secreto ni ningún valor de glucosa.
+
+## Límites
+
+- **NO ES UN DISPOSITIVO MÉDICO**: ninguna garantía de plazo ni de entrega.
+- Un solo sitio Nightscout por integración.
+- Leído al ritmo de la actualización (1 minuto como mínimo): un disparador
+  puede llegar un minuto o más después de la alarma de Nightscout.
+- No se leen: insulina activa, carbohidratos activos, detalles de la bomba y
+  del lazo, tratamientos.
+- Los umbrales propuestos en mg/dL son valores fijos; los de Nightscout siguen
+  su sitio.
+- Integración no oficial, sin relación con el proyecto Nightscout.

@@ -1,41 +1,46 @@
 // -----------------------------------------------------------------------------
-// Scene actions (SDK v0.14+, Gladys 5.1+).
+// Scene action handlers (manifest `scene_actions`, Gladys 5.1+).
 //
-// A scene action is an OPERATION a scene author places in a scene, with
-// parameters and a result: "identify this device", "take a snapshot", "clean
-// these rooms". Each one is declared in the manifest `scene_actions` field
-// (key, label, `fields` in the config_schema grammar, scalar `outputs`) and
-// handled here, keyed by that same `key`; index.js registers every entry with
-// `gladys.onSceneAction(key, ...)`.
-//
-// Scene TRIGGERS are the other direction ("this happened"): they are fired by
-// the device that observes the event, see src/devices/motionSensor.js.
-//
-// The rules that matter:
-//   - `fields` arrive RESOLVED: scene variables substituted, defaults applied,
-//     validated by the core; a `"source": "devices"` field is the chosen
-//     device external_id;
-//   - resolve an object of the declared `outputs` (scalars only), readable by
-//     the following actions of the scene, or `undefined` for none. Keys not
-//     declared in the manifest are dropped by the core;
-//   - throwing fails THIS action only: the scene logs it and continues. A
-//     scene action is never a condition: return an output and let the scene
-//     author gate on it;
-//   - never fire a scene event as a consequence of a received action: a scene
-//     bound to that event would loop through the integration.
+// "Is the glucose above 180?" is already a scene condition on the device
+// feature. The action is about what a condition cannot do: put the glucose,
+// its trend and its age in a message ("Glucose 142 mg/dL → +3, 4 min ago")
+// for a Telegram message or a spoken announcement, from the device added to
+// Gladys or not. It reads Nightscout again when the last read is older than
+// 30 seconds.
 // -----------------------------------------------------------------------------
 
-import { createLogger } from '@gladysassistant/integration-sdk';
-import { signalDevice } from './devices/index.js';
+import { TREND_ARROWS, UNIT_LABELS, inUnit } from './glucose.js';
+import { DATA_TEXT, pick } from './texts.js';
 
-const logger = createLogger({ name: 'scenes' });
+async function readable(hub) {
+  // An error of the last reading is not final: read again first.
+  if (!hub.client) {
+    hub.assertReadable();
+  }
+  await hub.refreshIfStale();
+  hub.assertReadable();
+}
 
 export const SCENE_ACTIONS = {
-  // The ack is awaited under the action's `timeout_seconds` (15 s in the
-  // manifest), counted from the moment the scene reaches the action.
-  async identify_device(gladys, { fields, config }) {
-    logger.info(`Scene action identify_device <- ${fields.device}`);
-    const signalled = await signalDevice(gladys, fields.device, config);
-    return { signalled };
+  async get_glucose(hub) {
+    await readable(hub);
+    const language = hub.config.language;
+    const view = hub.view();
+    if (!view.reading) {
+      throw new Error(pick(DATA_TEXT.none, language));
+    }
+    const { reading, unit } = view;
+    return {
+      glucose: inUnit(reading.sgv, unit),
+      unit: UNIT_LABELS[unit],
+      trend: reading.trend,
+      trend_arrow: TREND_ARROWS[reading.trend],
+      delta: view.delta === null ? 0 : inUnit(view.delta, unit),
+      age_minutes: view.ageMinutes,
+      current: view.fresh,
+      out_of_range: view.outOfRange === true,
+      measured_at: new Date(reading.date).toISOString(),
+      sentence: hub.sentence(language),
+    };
   },
 };
