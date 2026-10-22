@@ -8,8 +8,8 @@
     "de": "Deine Nightscout-Glukose in Gladys: Wert, Trend, Alarme. Nur lesend. Kein Medizinprodukt.",
     "es": "Su glucosa de Nightscout en Gladys: valor, tendencia, alertas. No es un dispositivo médico."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/guim31/gladys-nightscout:1.0.0",
+  "version": "1.0.1",
+  "docker_image": "ghcr.io/guim31/gladys-nightscout:1.0.1",
   "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/guim31/gladys-nightscout/main/cover.png",
   "categories": ["services"],
