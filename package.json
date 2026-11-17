@@ -1,6 +1,6 @@
 {
   "name": "gladys-nightscout",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Nightscout (continuous glucose monitoring) in Gladys Assistant: glucose, trend, alerts. Read only. Not a medical device.",
   "type": "module",
